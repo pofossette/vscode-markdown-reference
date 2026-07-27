@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="../../node_modules/@vscode/codicons/dist/codicon.css">
+    <link rel="stylesheet" href="../../media/reference.css">
+    <style>
+        :root {
+            --vscode-editor-font-family: "Cascadia Code", Consolas, monospace;
+            --vscode-textLink-foreground: #75beff;
+            --vscode-textLink-activeForeground: #4daafc;
+            --vscode-textCodeBlock-background: #181818;
+            --vscode-widget-border: #343434;
+            --vscode-list-hoverBackground: #242424;
+            --vscode-focusBorder: #007fd4;
+            --vscode-symbolIcon-fieldForeground: #75beff;
+            --vscode-symbolIcon-methodForeground: #b180d7;
+        }
+
+        body {
+            background: #111;
+            color: #ccc;
+            font: 14px/1.5 var(--vscode-editor-font-family);
+            margin: 0;
+            padding: 24px;
+        }
+
+        .samples {
+            align-items: flex-start;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .sample-label {
+            color: #888;
+            display: block;
+            font: 11px/1.2 sans-serif;
+            margin-bottom: 5px;
+        }
+    </style>
+    <title>Markdown reference visual fixture</title>
+</head>
+<body>
+    <main class="samples">
+        <div>
+            <span class="sample-label">File reference</span>
+            <a id="file-reference" class="md-ref md-ref--code" href="#file">
+                <span class="codicon codicon-file-code md-ref__icon" aria-hidden="true"></span>
+                <span class="md-ref__label"><span class="md-ref__path">message-list.tsx</span></span>
+            </a>
+        </div>
+        <div>
+            <span class="sample-label">Field symbol</span>
+            <a id="field-reference" class="md-ref md-ref--code md-ref--symbol" href="#field">
+                <span class="codicon codicon-symbol-field md-ref__icon md-ref__symbol-icon md-ref__symbol-icon--field" aria-hidden="true"></span>
+                <span class="md-ref__label"><span class="md-ref__path">user.ts</span><span class="md-ref__symbol">#User.email</span></span>
+            </a>
+        </div>
+        <div>
+            <span class="sample-label">Method symbol</span>
+            <a id="method-reference" class="md-ref md-ref--code md-ref--symbol" href="#method">
+                <span class="codicon codicon-symbol-method md-ref__icon md-ref__symbol-icon md-ref__symbol-icon--method" aria-hidden="true"></span>
+                <span class="md-ref__label"><span class="md-ref__path">user.ts</span><span class="md-ref__symbol">#findUser</span></span>
+            </a>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,166 @@
+.md-ref {
+    align-items: center;
+    background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.06));
+    border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.28));
+    border-radius: 4px;
+    box-sizing: border-box;
+    color: var(--vscode-textLink-foreground, #75beff);
+    cursor: pointer;
+    display: inline-flex;
+    font-family: var(--vscode-editor-font-family, var(--vscode-font-family, monospace));
+    font-size: 0.92em;
+    gap: 0.3em;
+    line-height: 1.45;
+    max-width: 100%;
+    padding: 0.06em 0.38em;
+    text-decoration: none;
+    transition: background-color 80ms ease, border-color 80ms ease, color 80ms ease;
+    vertical-align: baseline;
+}
+
+.md-ref:hover {
+    background: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.12));
+    border-color: var(--vscode-textLink-activeForeground, #4daafc);
+    color: var(--vscode-textLink-activeForeground, #4daafc);
+}
+
+.md-ref:hover .md-ref__path,
+.md-ref:hover .md-ref__symbol {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.md-ref:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder, #007fd4);
+    outline-offset: 1px;
+}
+
+.md-ref__icon {
+    color: var(--vscode-icon-foreground, currentColor);
+    font-size: 1em;
+    position: relative;
+    top: 0.08em;
+}
+
+.md-ref__theme-icon {
+    flex: 0 0 auto;
+    height: 1.12em;
+    object-fit: contain;
+    top: 0;
+    width: 1.12em;
+}
+
+.md-ref__label {
+    display: inline-flex;
+    min-width: 0;
+}
+
+.md-ref__path {
+    overflow-wrap: anywhere;
+}
+
+.md-ref--code .md-ref__icon { color: var(--vscode-symbolIcon-methodForeground, #b180d7); }
+.md-ref--json .md-ref__icon { color: var(--vscode-symbolIcon-keyForeground, #d7ba7d); }
+.md-ref--markdown .md-ref__icon { color: var(--vscode-textLink-foreground, #4daafc); }
+.md-ref--image .md-ref__icon { color: var(--vscode-symbolIcon-colorForeground, #ce9178); }
+.md-ref--folder .md-ref__icon { color: var(--vscode-symbolIcon-folderForeground, #dcb67a); }
+.md-ref--database .md-ref__icon { color: var(--vscode-symbolIcon-structForeground, #4ec9b0); }
+.md-ref--archive .md-ref__icon { color: var(--vscode-symbolIcon-packageForeground, #c586c0); }
+
+.md-ref__range {
+    color: var(--vscode-descriptionForeground, currentColor);
+    font-size: 0.84em;
+    white-space: nowrap;
+}
+
+.md-ref__symbol {
+    color: currentColor;
+    white-space: nowrap;
+}
+
+.md-ref__symbol-icon--file { color: var(--vscode-symbolIcon-fileForeground, #c5c5c5); }
+.md-ref__symbol-icon--module { color: var(--vscode-symbolIcon-moduleForeground, #c586c0); }
+.md-ref__symbol-icon--namespace { color: var(--vscode-symbolIcon-namespaceForeground, #c586c0); }
+.md-ref__symbol-icon--package { color: var(--vscode-symbolIcon-packageForeground, #c586c0); }
+.md-ref__symbol-icon--class { color: var(--vscode-symbolIcon-classForeground, #ee9d28); }
+.md-ref__symbol-icon--method { color: var(--vscode-symbolIcon-methodForeground, #b180d7); }
+.md-ref__symbol-icon--property { color: var(--vscode-symbolIcon-propertyForeground, #75beff); }
+.md-ref__symbol-icon--field { color: var(--vscode-symbolIcon-fieldForeground, #75beff); }
+.md-ref__symbol-icon--constructor { color: var(--vscode-symbolIcon-constructorForeground, #b180d7); }
+.md-ref__symbol-icon--enum { color: var(--vscode-symbolIcon-enumeratorForeground, #ee9d28); }
+.md-ref__symbol-icon--interface { color: var(--vscode-symbolIcon-interfaceForeground, #75beff); }
+.md-ref__symbol-icon--function { color: var(--vscode-symbolIcon-functionForeground, #b180d7); }
+.md-ref__symbol-icon--variable { color: var(--vscode-symbolIcon-variableForeground, #75beff); }
+.md-ref__symbol-icon--constant { color: var(--vscode-symbolIcon-constantForeground, #75beff); }
+.md-ref__symbol-icon--string { color: var(--vscode-symbolIcon-stringForeground, #ce9178); }
+.md-ref__symbol-icon--number { color: var(--vscode-symbolIcon-numberForeground, #b5cea8); }
+.md-ref__symbol-icon--boolean { color: var(--vscode-symbolIcon-booleanForeground, #569cd6); }
+.md-ref__symbol-icon--array { color: var(--vscode-symbolIcon-arrayForeground, #75beff); }
+.md-ref__symbol-icon--object { color: var(--vscode-symbolIcon-objectForeground, #75beff); }
+.md-ref__symbol-icon--key { color: var(--vscode-symbolIcon-keyForeground, #75beff); }
+.md-ref__symbol-icon--null { color: var(--vscode-symbolIcon-nullForeground, #569cd6); }
+.md-ref__symbol-icon--enum-member { color: var(--vscode-symbolIcon-enumeratorMemberForeground, #75beff); }
+.md-ref__symbol-icon--struct { color: var(--vscode-symbolIcon-structForeground, #75beff); }
+.md-ref__symbol-icon--event { color: var(--vscode-symbolIcon-eventForeground, #ee9d28); }
+.md-ref__symbol-icon--operator { color: var(--vscode-symbolIcon-operatorForeground, #c586c0); }
+.md-ref__symbol-icon--type-parameter { color: var(--vscode-symbolIcon-typeParameterForeground, #75beff); }
+
+.md-ref-preview {
+    background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.08));
+    border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+    border-radius: 6px;
+    display: block;
+    margin: 0.75em 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.md-ref-preview__header {
+    align-items: center;
+    background: var(--vscode-editorGroupHeader-tabsBackground, transparent);
+    border-bottom: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+    display: flex;
+    gap: 0.5em;
+    justify-content: space-between;
+    min-height: 2.25em;
+    padding: 0 0.75em;
+}
+
+.md-ref-preview__meta {
+    color: var(--vscode-descriptionForeground, currentColor);
+    flex: 0 0 auto;
+    font-size: 0.82em;
+}
+
+.md-ref-preview__code {
+    background: transparent !important;
+    border-radius: 0;
+    box-sizing: border-box;
+    display: block;
+    font-family: var(--vscode-editor-font-family, var(--vscode-font-family, monospace));
+    font-size: var(--vscode-editor-font-size, 13px);
+    line-height: 1.55;
+    margin: 0;
+    max-height: 32em;
+    overflow: auto;
+    padding: 0.85em 1em;
+    tab-size: var(--vscode-editor-tabSize, 4);
+    white-space: pre;
+    width: 100%;
+}
+
+.md-ref-preview__message {
+    color: var(--vscode-descriptionForeground, currentColor);
+    display: block;
+    padding: 0.85em 1em;
+}
+
+@media (max-width: 520px) {
+    .md-ref-preview__header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.15em;
+        padding-bottom: 0.5em;
+        padding-top: 0.5em;
+    }
+}
