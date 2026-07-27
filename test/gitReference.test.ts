@@ -118,7 +118,8 @@ describe('Git reference parsing', () => {
 });
 
 describe('Git diff rendering', () => {
-    const documentPath = path.join('workspace', 'docs', 'README.md');
+    const repositoryRoot = path.resolve('workspace');
+    const documentPath = path.join(repositoryRoot, 'docs', 'README.md');
     const env = { currentDocument: { scheme: 'file', fsPath: documentPath } };
     const diff = [
         'diff --git a/src/app.ts b/src/app.ts',
@@ -138,6 +139,7 @@ describe('Git diff rendering', () => {
             diff,
             label: 'src/app.ts',
             comparison: 'main -> HEAD',
+            repositoryRoot,
         }));
         const markdown = installMarkdownReferencePlugin(new MarkdownIt({ highlight }), { gitDiffForReference });
 
@@ -150,6 +152,8 @@ describe('Git diff rendering', () => {
         );
         expect(html).toContain('md-ref-git-diff__header');
         expect(html).toContain('src/app.ts');
+        expect(html).toContain('class="md-ref-git-diff__link"');
+        expect(html).toContain('href="../src/app.ts" data-href="../src/app.ts"');
         expect(html).toContain('main -&gt; HEAD');
         expect(html).toContain('md-ref-git-diff__line--deletion');
         expect(html).toContain('md-ref-git-diff__line--addition');
@@ -164,6 +168,23 @@ describe('Git diff rendering', () => {
             'typescript',
             ''
         );
+    });
+
+    it('links a repository diff file title to the local file', () => {
+        const markdown = installMarkdownReferencePlugin(new MarkdownIt(), {
+            gitDiffForReference: () => ({
+                ok: true,
+                diff,
+                label: 'Repository changes',
+                comparison: 'main -> feature/refactor',
+                repositoryRoot,
+            }),
+        });
+
+        const html = markdown.render('`.?git_diff=true&base=main&head=feature/refactor`', env);
+
+        expect(html).toContain('class="md-ref-git-diff__file-name"');
+        expect(html).toContain('href="../src/app.ts" data-href="../src/app.ts"');
     });
 
     it('renders a bare path-based Git reference exactly once', () => {

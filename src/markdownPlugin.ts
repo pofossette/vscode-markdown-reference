@@ -175,7 +175,7 @@ function renderGitDiff(
     }
     const fileMarkup = files.map(file => renderGitDiffFile(
         file,
-        files.length > 1,
+        files.length > 1 || (!reference.diffOnly && reference.kind === 'repository'),
         result.repositoryRoot,
         documentPath,
         markdown,
@@ -185,9 +185,12 @@ function renderGitDiff(
     if (reference.diffOnly) {
         return `<span class="md-ref-git-diff md-ref-git-diff--only">${fileMarkup}</span>`;
     }
+    const title = reference.filePath
+        ? renderGitFileLink(result.label, reference.filePath, result.repositoryRoot, documentPath, markdown)
+        : label;
     return `<span class="md-ref-preview md-ref-git-diff">`
         + `<span class="md-ref-preview__header md-ref-git-diff__header">`
-        + `<span class="md-ref-git-diff__title"><span class="codicon codicon-git-compare" aria-hidden="true"></span>${label}</span>`
+        + `<span class="md-ref-git-diff__title"><span class="codicon codicon-git-compare" aria-hidden="true"></span>${title}</span>`
         + `<span class="md-ref-preview__meta">${comparison}</span></span>`
         + `<span class="md-ref-git-diff__files">${fileMarkup}</span></span>`;
 }
@@ -238,7 +241,7 @@ function renderGitDiffFile(
     const languageClass = language ? ` language-${markdown.utils.escapeHtml(language)}` : '';
     const languageLabel = markdown.utils.escapeHtml(languageLabelForFile(file.path, language));
     const fileName = showFileName
-        ? `<span class="md-ref-git-diff__file-name">${markdown.utils.escapeHtml(file.path)}</span>`
+        ? renderGitFileLink(file.path, file.path, repositoryRoot, documentPath, markdown, 'md-ref-git-diff__file-name')
         : '<span></span>';
     return `<span class="md-ref-git-diff__file">`
         + `<span class="md-ref-git-diff__file-header">${fileName}<span class="md-ref-git-diff__language">${languageLabel}</span></span>`
@@ -279,6 +282,31 @@ function renderGitSourceLines(
 function languageLabelForFile(filePath: string, language: string): string {
     const extension = path.extname(filePath).slice(1).toLowerCase();
     return extension || language || 'text';
+}
+
+function renderGitFileLink(
+    label: string,
+    filePath: string,
+    repositoryRoot: string | undefined,
+    documentPath: string,
+    markdown: MarkdownIt,
+    className = 'md-ref-git-diff__link'
+): string {
+    const escapedLabel = markdown.utils.escapeHtml(label);
+    if (!repositoryRoot) return `<span class="${className}">${escapedLabel}</span>`;
+    const absolutePath = path.resolve(repositoryRoot, ...filePath.split('/'));
+    const repositoryRelativePath = path.relative(repositoryRoot, absolutePath);
+    if (repositoryRelativePath.startsWith('..') || path.isAbsolute(repositoryRelativePath)) {
+        return `<span class="${className}">${escapedLabel}</span>`;
+    }
+    const relativePath = path.relative(path.dirname(documentPath), absolutePath);
+    const href = relativePath
+        .split(path.sep)
+        .map(segment => encodeURIComponent(segment))
+        .join('/');
+    const escapedHref = markdown.utils.escapeHtml(href || path.basename(absolutePath));
+    const escapedTitle = markdown.utils.escapeHtml(absolutePath);
+    return `<a class="${className}" href="${escapedHref}" data-href="${escapedHref}" title="${escapedTitle}">${escapedLabel}</a>`;
 }
 
 function renderLink(

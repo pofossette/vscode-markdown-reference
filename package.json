@@ -2,7 +2,7 @@
   "name": "vscode-markdown-reference",
   "displayName": "Markdown Reference Preview",
   "description": "Clickable file references and inline source previews for VS Code Markdown preview.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "r0kuko",
   "license": "MIT",
   "icon": "images/icon.png",

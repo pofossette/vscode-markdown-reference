@@ -216,6 +216,7 @@
 
 .md-ref-git-diff__header {
     font-family: var(--vscode-editor-font-family, var(--vscode-font-family, monospace));
+    font-size: 0.9em;
 }
 
 .md-ref-git-diff__title {
@@ -229,6 +230,25 @@
 .md-ref-git-diff__title .codicon {
     color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-icon-foreground, currentColor));
     flex: 0 0 auto;
+}
+
+.md-ref-git-diff__link,
+.md-ref-git-diff__file-name {
+    color: inherit;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+}
+
+.md-ref-git-diff__link:hover,
+.md-ref-git-diff__file-name:hover {
+    color: var(--vscode-textLink-activeForeground, #4daafc);
+    text-decoration: none;
+}
+
+.md-ref-git-diff__link:focus-visible,
+.md-ref-git-diff__file-name:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder, #007fd4);
+    outline-offset: 2px;
 }
 
 .md-ref-git-diff--only {
@@ -260,10 +280,6 @@
     justify-content: space-between;
     min-height: 2.25em;
     padding: 0.25em 0.8em 0;
-}
-
-.md-ref-git-diff__file-name {
-    overflow-wrap: anywhere;
 }
 
 .md-ref-git-diff__language {

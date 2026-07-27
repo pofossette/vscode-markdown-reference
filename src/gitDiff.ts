@@ -39,8 +39,9 @@ export function loadGitDiff(
                 '--format=%h%x00%s',
                 reference.commit,
             ]).trim().split('\0');
-            label = subject ? `${shortHash} ${subject}` : `Commit ${shortHash || reference.commit}`;
-            comparison = reference.commit;
+            const commitLabel = subject ? `${shortHash} ${subject}` : `Commit ${shortHash || reference.commit}`;
+            label = reference.kind === 'file' ? reference.filePath! : commitLabel;
+            comparison = reference.kind === 'file' ? commitLabel : reference.commit;
         } else {
             label = reference.kind === 'file' ? reference.filePath! : 'Repository changes';
             comparison = `${displayRef(repositoryRoot, reference.base!)} -> ${displayRef(repositoryRoot, reference.head)}`;
