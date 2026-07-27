@@ -214,6 +214,115 @@
     padding: 0.85em 1em;
 }
 
+.md-ref-git-diff__header {
+    font-family: var(--vscode-editor-font-family, var(--vscode-font-family, monospace));
+}
+
+.md-ref-git-diff__title {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.4em;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.md-ref-git-diff__title .codicon {
+    color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-icon-foreground, currentColor));
+    flex: 0 0 auto;
+}
+
+.md-ref-git-diff--only {
+    background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.08));
+    border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+    border-radius: 6px;
+    display: block;
+    margin: 0.75em 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.md-ref-git-diff__files,
+.md-ref-git-diff__file {
+    display: block;
+}
+
+.md-ref-git-diff__file + .md-ref-git-diff__file {
+    border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+}
+
+.md-ref-git-diff__file-header {
+    align-items: center;
+    background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.08));
+    color: var(--vscode-descriptionForeground, currentColor);
+    display: flex;
+    font-family: var(--vscode-editor-font-family, var(--vscode-font-family, monospace));
+    font-size: 0.78em;
+    justify-content: space-between;
+    min-height: 2.25em;
+    padding: 0.25em 0.8em 0;
+}
+
+.md-ref-git-diff__file-name {
+    overflow-wrap: anywhere;
+}
+
+.md-ref-git-diff__language {
+    flex: 0 0 auto;
+    text-transform: lowercase;
+}
+
+.md-ref-git-diff__line {
+    display: grid;
+    grid-template-columns: 2.25em minmax(max-content, 1fr);
+    min-height: 1.55em;
+    min-width: 100%;
+    width: max-content;
+}
+
+.md-ref-git-diff__marker {
+    box-sizing: border-box;
+    color: var(--vscode-descriptionForeground, currentColor);
+    text-align: center;
+    user-select: none;
+}
+
+.md-ref-git-diff__line-content {
+    padding: 0 1em 0 0.2em;
+}
+
+.md-ref-git-diff__code {
+    padding-bottom: 0.85em;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0.35em;
+}
+
+.md-ref-git-diff__line--addition {
+    background: var(--vscode-diffEditor-insertedLineBackground, rgba(46, 160, 67, 0.2));
+}
+
+.md-ref-git-diff__line--deletion {
+    background: var(--vscode-diffEditor-removedLineBackground, rgba(248, 81, 73, 0.2));
+}
+
+.md-ref-git-diff__line--addition .md-ref-git-diff__marker {
+    color: var(--vscode-gitDecoration-addedResourceForeground, #3fb950);
+}
+
+.md-ref-git-diff__line--deletion .md-ref-git-diff__marker {
+    color: var(--vscode-gitDecoration-deletedResourceForeground, #f85149);
+}
+
+.md-ref-git-diff__line--separator {
+    background: var(--vscode-diffEditor-unchangedRegionBackground, rgba(56, 139, 253, 0.12));
+    color: var(--vscode-descriptionForeground, currentColor);
+}
+
+.md-ref-git-diff__line--message {
+    color: var(--vscode-descriptionForeground, currentColor);
+    font-style: italic;
+}
+
 @media (max-width: 520px) {
     .md-ref-preview__header {
         align-items: flex-start;

@@ -14,6 +14,10 @@
             --vscode-widget-border: #343434;
             --vscode-list-hoverBackground: #242424;
             --vscode-focusBorder: #007fd4;
+            --vscode-diffEditor-insertedLineBackground: rgba(46, 160, 67, 0.22);
+            --vscode-diffEditor-removedLineBackground: rgba(248, 81, 73, 0.22);
+            --vscode-diffEditor-unchangedRegionBackground: rgba(56, 139, 253, 0.13);
+            --vscode-editorLineNumber-foreground: #6e7681;
             --vscode-symbolIcon-fieldForeground: #75beff;
             --vscode-symbolIcon-methodForeground: #b180d7;
         }
@@ -74,6 +78,19 @@
                     <span class="md-ref-preview__meta">Line 2</span>
                 </span>
                 <code class="hljs md-ref-preview__code md-ref-preview__code--has-focus language-kotlin"><span class="md-ref-preview__line md-ref-preview__line--highlight" data-line="1"><span style="color: #c586c0">fun</span> hello() {</span><span class="md-ref-preview__line md-ref-preview__line--focus" data-line="2">    val message = "hello"</span><span class="md-ref-preview__line md-ref-preview__line--highlight" data-line="3">    prepare(message)</span><span class="md-ref-preview__line md-ref-preview__line--focus" data-line="4">    println(message)</span><span class="md-ref-preview__line" data-line="5">}</span></code>
+            </span>
+        </div>
+        <div style="width: 100%">
+            <span class="sample-label">Git file diff</span>
+            <span class="md-ref-preview md-ref-git-diff">
+                <span class="md-ref-preview__header md-ref-git-diff__header">
+                    <span class="md-ref-git-diff__title"><span class="codicon codicon-git-compare" aria-hidden="true"></span>src/app.ts</span>
+                    <span class="md-ref-preview__meta">main -&gt; feature/refactor</span>
+                </span>
+                <span class="md-ref-git-diff__files"><span class="md-ref-git-diff__file">
+                    <span class="md-ref-git-diff__file-header"><span></span><span class="md-ref-git-diff__language">ts</span></span>
+                    <code class="hljs md-ref-preview__code md-ref-git-diff__code language-typescript"><span class="md-ref-git-diff__line"><span class="md-ref-git-diff__marker"></span><span class="md-ref-git-diff__line-content"><span style="color:#c586c0">export</span> function start() {</span></span><span class="md-ref-git-diff__line md-ref-git-diff__line--deletion"><span class="md-ref-git-diff__marker">-</span><span class="md-ref-git-diff__line-content">    <span style="color:#569cd6">const</span> timeout = <span style="color:#b5cea8">1000</span>;</span></span><span class="md-ref-git-diff__line md-ref-git-diff__line--addition"><span class="md-ref-git-diff__marker">+</span><span class="md-ref-git-diff__line-content">    <span style="color:#569cd6">const</span> timeout = <span style="color:#b5cea8">2500</span>;</span></span><span class="md-ref-git-diff__line"><span class="md-ref-git-diff__marker"></span><span class="md-ref-git-diff__line-content">    run(timeout);</span></span><span class="md-ref-git-diff__line"><span class="md-ref-git-diff__marker"></span><span class="md-ref-git-diff__line-content">}</span></span></code>
+                </span></span>
             </span>
         </div>
     </main>

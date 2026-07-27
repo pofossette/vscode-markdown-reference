@@ -42,6 +42,27 @@ src/example.ts
 内嵌预览仅读取本地 UTF-8 文本文件。未指定范围时最多显示前 200 行，超过 1 MiB 的文件和二进制文件不会直接展开。
 预览块标题只显示文件名（符号预览会显示为 `A.kt#hello`），以纯文本链接呈现；hover 时才切换为链接色。Symbol preview 会依据目标源码文件的 `editor.tabSize` 自动移除公共缩进，使方法或类型的最外层代码从第 0 列开始，同时保留内部相对缩进。
 
+## Git diff 引用
+
+Git 引用会在 Markdown 中显示为源码式 diff：原始 patch 的 `diff --git`、`index` 和 `@@` 元数据会被隐藏，只保留带 `+/-` gutter 的源码行。源码按照目标文件语言高亮，新增和删除行使用 VS Code 当前主题的 diff 背景色，右上角显示文件语言。Git 命令只读取本地仓库，不会访问远端。
+
+```markdown
+`src/app.ts?git_diff=true&base=main`
+`src/app.ts?git_diff=true&base=release/1.0&head=feature/refactor`
+`.?git_diff=true&base=main&head=feature/refactor`
+`.?git_diff=true&commit=a1b2c3d`
+`.?git_diff=true&commit=a1b2c3d&context=0&diff_only=true`
+```
+
+- `path/to/file?git_diff=true&base=main`：比较指定分支与当前分支的文件变化；省略 `head` 时动态使用当前 `HEAD`，标题会显示实际分支名，detached HEAD 时显示短哈希。
+- `path/to/file?git_diff=true&base=main&head=feature`：比较两个明确指定的 branch、tag 或 commit ref，并只显示目标文件。
+- `.?git_diff=true&base=main&head=feature`：显示两个 ref 之间的仓库级 diff，包括所有变更文件。
+- `.?git_diff=true&commit=a1b2c3d`：显示指定提交相对其第一父提交产生的完整 diff；将 `.` 换成文件路径可以只查看该提交中的指定文件。
+- `context=N`：设置每个 diff hunk 上下最多保留的未修改行数，默认 `3`，可设置为 `0` 至 `100`。
+- `diff_only=true`：只输出 diff 代码块，省略文件名、提交和分支比较标题。
+
+文件路径始终相对于 Git 仓库根目录，不能越出仓库。分支、tag 和 commit 会作为独立参数传递给 Git，不经过 shell 拼接。
+
 ## 配置
 
 - `markdownReference.fontSize`：文件和符号引用的字号（像素），默认 `13`，可在用户或工作区设置中配置。

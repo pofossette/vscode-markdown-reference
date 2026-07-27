@@ -33,3 +33,11 @@ src/example.ts
 - `notes/design.md`
 
 a.kt#hello?preview=true
+
+比较 `main` 与当前分支中的指定文件：
+
+`src/example.ts?git_diff=true&base=main`
+
+只显示指定提交的纯 diff，并移除未修改上下文：
+
+`.?git_diff=true&commit=HEAD&context=0&diff_only=true`

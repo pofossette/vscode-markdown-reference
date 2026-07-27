@@ -1,7 +1,11 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import type MarkdownIt from 'markdown-it';
 import type Token from 'markdown-it/lib/token.mjs';
 import type { SyntaxHighlightTheme, SyntaxTokenKind } from './colorTheme';
+import { loadGitDiff, type GitDiffResult } from './gitDiff';
+import { parseGitPatch, type GitPatchFile, type GitPatchLine } from './gitPatch';
+import { findGitReferenceMatches, parseGitReference, type ParsedGitReference } from './gitReference';
 import {
     findReferenceMatches,
     iconForFile,
@@ -35,6 +39,11 @@ export interface MarkdownReferencePluginOptions {
         filePath: string,
         symbol: string
     ) => PreviewLineRange | null | undefined;
+    gitDiffForReference?: (
+        reference: ParsedGitReference,
+        documentPath: string,
+        workspaceRoot?: string
+    ) => GitDiffResult;
 }
 
 const iconClasses = {
@@ -84,7 +93,14 @@ function renderTextReferences(
     markdown: MarkdownIt,
     pluginOptions: MarkdownReferencePluginOptions
 ): string | undefined {
-    const matches = findReferenceMatches(text);
+    const candidates = [...findReferenceMatches(text), ...findGitReferenceMatches(text)]
+        .sort((left, right) => left.index - right.index || right.length - left.length);
+    const matches = candidates.filter((match, index) =>
+        !candidates.slice(0, index).some(selected =>
+            match.index < selected.index + selected.length
+            && selected.index < match.index + match.length
+        )
+    );
     if (!matches.length) return undefined;
 
     let output = '';
@@ -116,6 +132,12 @@ function renderExactReference(
         : undefined;
     if (!documentPath) return undefined;
 
+    const gitReference = parseGitReference(value);
+    if (gitReference) {
+        const workspaceRoot = pluginOptions.workspaceRootForDocument?.(documentPath);
+        return renderGitDiff(gitReference, documentPath, workspaceRoot, markdown, pluginOptions);
+    }
+
     const parsed = parseReference(value);
     if (!parsed) return undefined;
     const workspaceRoot = pluginOptions.workspaceRootForDocument?.(documentPath);
@@ -125,6 +147,138 @@ function renderExactReference(
     return resolved.preview && !resolved.isDirectory
         ? renderPreview(resolved, documentPath, markdown, pluginOptions)
         : renderLink(resolved, documentPath, markdown, pluginOptions);
+}
+
+function renderGitDiff(
+    reference: ParsedGitReference,
+    documentPath: string,
+    workspaceRoot: string | undefined,
+    markdown: MarkdownIt,
+    pluginOptions: MarkdownReferencePluginOptions
+): string {
+    const result = pluginOptions.gitDiffForReference
+        ? pluginOptions.gitDiffForReference(reference, documentPath, workspaceRoot)
+        : loadGitDiff(reference, documentPath, workspaceRoot);
+    if (!result.ok) {
+        return renderGitDiffMessage(reference, result.message, markdown);
+    }
+
+    const label = markdown.utils.escapeHtml(result.label);
+    const comparison = markdown.utils.escapeHtml(result.comparison);
+    if (!result.diff) {
+        return renderGitDiffMessage(reference, 'No changes were found for this comparison.', markdown, label, comparison);
+    }
+
+    const files = parseGitPatch(result.diff);
+    if (!files.length) {
+        return renderGitDiffMessage(reference, 'This Git change cannot be displayed as source code.', markdown, label, comparison);
+    }
+    const fileMarkup = files.map(file => renderGitDiffFile(
+        file,
+        files.length > 1,
+        result.repositoryRoot,
+        documentPath,
+        markdown,
+        pluginOptions
+    )).join('');
+
+    if (reference.diffOnly) {
+        return `<span class="md-ref-git-diff md-ref-git-diff--only">${fileMarkup}</span>`;
+    }
+    return `<span class="md-ref-preview md-ref-git-diff">`
+        + `<span class="md-ref-preview__header md-ref-git-diff__header">`
+        + `<span class="md-ref-git-diff__title"><span class="codicon codicon-git-compare" aria-hidden="true"></span>${label}</span>`
+        + `<span class="md-ref-preview__meta">${comparison}</span></span>`
+        + `<span class="md-ref-git-diff__files">${fileMarkup}</span></span>`;
+}
+
+function renderGitDiffMessage(
+    reference: ParsedGitReference,
+    message: string,
+    markdown: MarkdownIt,
+    label = markdown.utils.escapeHtml(reference.filePath ?? (reference.commit ? `Commit ${reference.commit}` : 'Repository changes')),
+    comparison = markdown.utils.escapeHtml(reference.commit
+        ? `${reference.commit}^ -> ${reference.commit}`
+        : `${reference.base ?? '?'} -> ${reference.head}`)
+): string {
+    const messageMarkup = `<span class="md-ref-preview__message">${markdown.utils.escapeHtml(message)}</span>`;
+    if (reference.diffOnly) {
+        return `<span class="md-ref-git-diff md-ref-git-diff--only">${messageMarkup}</span>`;
+    }
+    return `<span class="md-ref-preview md-ref-git-diff">`
+        + `<span class="md-ref-preview__header md-ref-git-diff__header">`
+        + `<span class="md-ref-git-diff__title"><span class="codicon codicon-git-compare" aria-hidden="true"></span>${label}</span>`
+        + `<span class="md-ref-preview__meta">${comparison}</span></span>${messageMarkup}</span>`;
+}
+
+function renderGitDiffFile(
+    file: GitPatchFile,
+    showFileName: boolean,
+    repositoryRoot: string | undefined,
+    documentPath: string,
+    markdown: MarkdownIt,
+    pluginOptions: MarkdownReferencePluginOptions
+): string {
+    const language = languageForFile(file.path);
+    const source = file.lines.map(line => line.kind === 'separator' ? '' : line.content).join('\n');
+    let code = markdown.utils.escapeHtml(source);
+    if (language && typeof markdown.options.highlight === 'function') {
+        try {
+            code = markdown.options.highlight(source, language, '') || code;
+        } catch {
+            // Fall back to escaped source when the highlighter rejects it.
+        }
+    }
+    const themePath = repositoryRoot
+        ? path.join(repositoryRoot, ...file.path.split('/'))
+        : documentPath;
+    const syntaxTheme = pluginOptions.syntaxThemeForFile?.(themePath);
+    if (syntaxTheme) code = applySyntaxTheme(code, syntaxTheme);
+    const renderedCode = renderGitSourceLines(code, file.lines, markdown);
+    const languageClass = language ? ` language-${markdown.utils.escapeHtml(language)}` : '';
+    const languageLabel = markdown.utils.escapeHtml(languageLabelForFile(file.path, language));
+    const fileName = showFileName
+        ? `<span class="md-ref-git-diff__file-name">${markdown.utils.escapeHtml(file.path)}</span>`
+        : '<span></span>';
+    return `<span class="md-ref-git-diff__file">`
+        + `<span class="md-ref-git-diff__file-header">${fileName}<span class="md-ref-git-diff__language">${languageLabel}</span></span>`
+        + `<code class="hljs md-ref-preview__code md-ref-git-diff__code${languageClass}"${syntaxTheme ? ` style="color:${syntaxTheme.foreground}"` : ''}>${renderedCode}</code></span>`;
+}
+
+function renderGitSourceLines(
+    highlightedCode: string,
+    sourceLines: GitPatchLine[],
+    markdown: MarkdownIt
+): string {
+    const highlightedLines = splitHighlightedCodeLines(highlightedCode);
+    if (highlightedLines.length > sourceLines.length) highlightedLines.length = sourceLines.length;
+    while (highlightedLines.length < sourceLines.length) highlightedLines.push('');
+
+    return highlightedLines.map((line, index) => {
+        const sourceLine = sourceLines[index];
+        const classes = ['md-ref-git-diff__line'];
+        let marker = '';
+        if (sourceLine.kind === 'addition') {
+            classes.push('md-ref-git-diff__line--addition');
+            marker = '+';
+        } else if (sourceLine.kind === 'deletion') {
+            classes.push('md-ref-git-diff__line--deletion');
+            marker = '-';
+        } else if (sourceLine.kind === 'separator') {
+            classes.push('md-ref-git-diff__line--separator');
+            line = markdown.utils.escapeHtml(sourceLine.content);
+        } else if (sourceLine.kind === 'message') {
+            classes.push('md-ref-git-diff__line--message');
+        }
+        return `<span class="${classes.join(' ')}">`
+            + `<span class="md-ref-git-diff__marker">${marker}</span>`
+            + `<span class="md-ref-git-diff__line-content">${line}</span></span>`;
+    }).join('');
+}
+
+function languageLabelForFile(filePath: string, language: string): string {
+    const extension = path.extname(filePath).slice(1).toLowerCase();
+    return extension || language || 'text';
 }
 
 function renderLink(
