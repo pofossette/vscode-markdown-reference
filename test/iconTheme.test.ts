@@ -4,6 +4,7 @@ import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
     loadIconTheme,
+    renderThemeDefinition,
     renderThemeIcon,
     resolveIconDefinitionId,
 } from '../src/iconTheme';
@@ -20,6 +21,7 @@ describe('VS Code file icon theme reuse', () => {
             "fonts": [{ "id": "test", "src": [{ "path": "./theme.woff", "format": "woff" }] }],
             "iconDefinitions": {
                 "default": { "fontCharacter": "D", "fontColor": "#cccccc" },
+                "symbol-method": { "fontCharacter": "\\\\c1", "fontId": "test" },
                 "typescript": { "iconPath": "./typescript.svg" },
                 "declaration": { "iconPath": "./typescript.svg" },
                 "package": { "iconPath": "./typescript.svg" },
@@ -56,5 +58,15 @@ describe('VS Code file icon theme reuse', () => {
         const generatedSvg = Buffer.from(fontIcon.dataUri.split(',')[1], 'base64').toString();
         expect(generatedSvg).toContain('@font-face');
         expect(generatedSvg).toContain('font/woff;base64,');
+    });
+
+    it('renders product icon definitions and decodes VS Code hex glyph notation', () => {
+        const theme = loadIconTheme(path.join(root, 'theme.json'))!;
+        const icon = renderThemeDefinition(theme, 'symbol-method')!;
+        const generatedSvg = Buffer.from(icon.dataUri.split(',')[1], 'base64').toString();
+
+        expect(icon.definitionId).toBe('symbol-method');
+        expect(generatedSvg).toContain('>Á</text>');
+        expect(generatedSvg).not.toContain('>\\c1</text>');
     });
 });

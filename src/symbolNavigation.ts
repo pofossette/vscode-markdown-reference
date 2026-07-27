@@ -5,6 +5,7 @@ export interface SymbolTarget {
     name: string;
     qualifiedName: string;
     range: vscode.Range;
+    fullRange: vscode.Range;
     kind: vscode.SymbolKind;
 }
 
@@ -81,6 +82,7 @@ function flattenSymbols(
                 name: symbol.name,
                 qualifiedName: names.join('.'),
                 range: symbol.selectionRange,
+                fullRange: symbol.range ?? symbol.selectionRange,
                 kind: symbol.kind,
             });
             targets.push(...flattenSymbols(symbol.children, names));
@@ -92,6 +94,7 @@ function flattenSymbols(
                 name: symbol.name,
                 qualifiedName,
                 range: symbol.location.range,
+                fullRange: symbol.location.range,
                 kind: symbol.kind,
             });
         }

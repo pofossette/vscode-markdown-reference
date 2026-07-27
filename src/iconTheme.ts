@@ -81,6 +81,18 @@ export function renderThemeIcon(
     return dataUri ? { definitionId, dataUri } : undefined;
 }
 
+export function renderThemeDefinition(
+    theme: IconTheme,
+    definitionId: string
+): RenderedThemeIcon | undefined {
+    const definition = theme.iconDefinitions[definitionId];
+    if (!definition) return undefined;
+    const dataUri = definition.iconPath
+        ? fileAssetDataUri(definition.iconPath)
+        : fontIconDataUri(theme, definition);
+    return dataUri ? { definitionId, dataUri } : undefined;
+}
+
 export function resolveIconDefinitionId(
     theme: IconTheme,
     filePath: string,
@@ -168,7 +180,7 @@ function fontIconDataUri(theme: IconTheme, definition: IconDefinition): string |
         const format = source.format ?? (path.extname(source.path).slice(1) || 'woff');
         const mime = format === 'ttf' ? 'font/ttf' : format === 'woff2' ? 'font/woff2' : 'font/woff';
         const color = safeColor(definition.fontColor);
-        const character = escapeXml(definition.fontCharacter);
+        const character = escapeXml(decodeFontCharacter(definition.fontCharacter));
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">`
             + `<style>@font-face{font-family:theme-icon;src:url(data:${mime};base64,${fontData}) format('${format}');}`
             + `text{font-family:theme-icon;font-size:16px;font-weight:${font.weight ?? 'normal'};font-style:${font.style ?? 'normal'}}</style>`
@@ -179,6 +191,15 @@ function fontIconDataUri(theme: IconTheme, definition: IconDefinition): string |
     } catch {
         return undefined;
     }
+}
+
+function decodeFontCharacter(value: string): string {
+    const match = /^\\([0-9a-f]+)$/i.exec(value);
+    if (!match) return value;
+    const codePoint = Number.parseInt(match[1], 16);
+    return Number.isSafeInteger(codePoint) && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint)
+        : value;
 }
 
 function safeColor(value: string | undefined): string {

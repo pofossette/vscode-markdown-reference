@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import type MarkdownIt from 'markdown-it';
 import type Token from 'markdown-it/lib/token.mjs';
+import type { SyntaxHighlightTheme, SyntaxTokenKind } from './colorTheme';
 import {
     findReferenceMatches,
     iconForFile,
@@ -15,13 +16,25 @@ interface MarkdownEnvironment {
     currentDocument?: { fsPath?: string; scheme?: string };
 }
 
+interface PreviewLineRange {
+    startLine: number;
+    endLine: number;
+}
+
 export interface MarkdownReferencePluginOptions {
     workspaceRootForDocument?: (documentPath: string) => string | undefined;
+    fontSizeForDocument?: (documentPath: string) => number | undefined;
+    tabSizeForFile?: (filePath: string) => number | undefined;
+    syntaxThemeForFile?: (filePath: string) => SyntaxHighlightTheme | undefined;
     fileIconForPath?: (filePath: string, isDirectory: boolean) => { dataUri: string } | undefined;
     symbolIconForReference?: (
         filePath: string,
         symbol: string
-    ) => { codicon: string; color: string } | undefined;
+    ) => { codicon: string; color: string; themedIcon?: { dataUri: string } } | undefined;
+    symbolRangeForReference?: (
+        filePath: string,
+        symbol: string
+    ) => PreviewLineRange | null | undefined;
 }
 
 const iconClasses = {
@@ -126,6 +139,10 @@ function renderLink(
     );
     const href = markdown.utils.escapeHtml(referenceHref(reference, documentPath));
     const title = markdown.utils.escapeHtml(reference.absolutePath);
+    const configuredFontSize = pluginOptions.fontSizeForDocument?.(documentPath);
+    const fontSize = typeof configuredFontSize === 'number' && configuredFontSize >= 8 && configuredFontSize <= 32
+        ? configuredFontSize
+        : 13;
     const range = reference.startLine
         ? `<span class="md-ref__range">L${reference.startLine}${reference.endLine !== reference.startLine ? `-${reference.endLine}` : ''}</span>`
         : '';
@@ -138,13 +155,18 @@ function renderLink(
     const themedIcon = reference.symbol
         ? undefined
         : pluginOptions.fileIconForPath?.(reference.absolutePath, reference.isDirectory);
-    const iconMarkup = symbolIcon
-        ? `<span class="codicon ${markdown.utils.escapeHtml(symbolIcon.codicon)} md-ref__icon md-ref__symbol-icon md-ref__symbol-icon--${markdown.utils.escapeHtml(symbolIcon.color)}" aria-hidden="true"></span>`
+    const symbolColorClass = symbolIcon
+        ? `md-ref__symbol-icon--${markdown.utils.escapeHtml(symbolIcon.color)}`
+        : '';
+    const iconMarkup = symbolIcon?.themedIcon
+        ? `<span class="md-ref__icon md-ref__product-icon md-ref__symbol-icon ${symbolColorClass}" style="--md-ref-product-icon:url(${markdown.utils.escapeHtml(symbolIcon.themedIcon.dataUri)})" aria-hidden="true"></span>`
+        : symbolIcon
+            ? `<span class="codicon ${markdown.utils.escapeHtml(symbolIcon.codicon)} md-ref__icon md-ref__symbol-icon ${symbolColorClass}" aria-hidden="true"></span>`
         : themedIcon
             ? `<img class="md-ref__icon md-ref__theme-icon" src="${markdown.utils.escapeHtml(themedIcon.dataUri)}" alt="">`
             : `<span class="codicon ${iconClasses[icon]} md-ref__icon" aria-hidden="true"></span>`;
     const linkKind = reference.symbol ? ' md-ref--symbol' : '';
-    return `<a class="md-ref md-ref--${icon}${linkKind}" href="${href}" data-href="${href}" title="${title}">`
+    return `<a class="md-ref md-ref--${icon}${linkKind}" href="${href}" data-href="${href}" title="${title}" style="--md-ref-font-size:${fontSize}px">`
         + iconMarkup
         + `<span class="md-ref__label"><span class="md-ref__path">${displayPath}</span>${symbol}</span>${range}</a>`;
 }
@@ -155,12 +177,29 @@ function renderPreview(
     markdown: MarkdownIt,
     pluginOptions: MarkdownReferencePluginOptions
 ): string {
-    const link = renderLink(reference, documentPath, markdown, pluginOptions);
-    const source = readPreviewSource(reference);
+    const link = renderPreviewLink(reference, documentPath, markdown, pluginOptions);
+    const symbolRange = reference.symbol
+        ? pluginOptions.symbolRangeForReference?.(reference.absolutePath, reference.symbol)
+        : undefined;
+    if (reference.symbol && symbolRange === undefined) {
+        return renderPreviewMessage(link, 'Resolving symbol preview...');
+    }
+    if (symbolRange === null) {
+        return renderPreviewMessage(link, 'This symbol cannot be previewed.');
+    }
+    const sourceReference = symbolRange
+        ? { ...reference, startLine: symbolRange.startLine, endLine: symbolRange.endLine }
+        : reference;
+    const configuredTabSize = pluginOptions.tabSizeForFile?.(reference.absolutePath);
+    const tabSize = typeof configuredTabSize === 'number'
+        && Number.isInteger(configuredTabSize)
+        && configuredTabSize >= 1
+        && configuredTabSize <= 16
+        ? configuredTabSize
+        : 4;
+    const source = readPreviewSource(sourceReference, reference.symbol ? tabSize : undefined);
     if (!source) {
-        return `<span class="md-ref-preview">`
-            + `<span class="md-ref-preview__header">${link}</span>`
-            + `<span class="md-ref-preview__message">This file cannot be previewed.</span></span>`;
+        return renderPreviewMessage(link, 'This file cannot be previewed.');
     }
 
     const language = languageForFile(reference.absolutePath);
@@ -172,17 +211,148 @@ function renderPreview(
             // Fall back to escaped source when a grammar rejects the snippet.
         }
     }
+    const syntaxTheme = pluginOptions.syntaxThemeForFile?.(reference.absolutePath);
+    if (syntaxTheme) code = applySyntaxTheme(code, syntaxTheme);
     const languageClass = language
         ? ` language-${markdown.utils.escapeHtml(language)}`
         : '';
     const lineLabel = source.startLine === source.endLine
         ? `Line ${source.startLine}`
         : `Lines ${source.startLine}-${source.endLine}`;
+    const hasFocus = Boolean(reference.focusLines?.length);
+    const hasLineDecorations = hasFocus || Boolean(reference.highlightLines?.length);
+    const renderedCode = hasLineDecorations
+        ? renderDecoratedCodeLines(code, source, reference)
+        : code;
+    const focusClass = hasFocus ? ' md-ref-preview__code--has-focus' : '';
 
     return `<span class="md-ref-preview">`
         + `<span class="md-ref-preview__header">${link}`
         + `<span class="md-ref-preview__meta">${lineLabel}</span></span>`
-        + `<code class="hljs md-ref-preview__code${languageClass}">${code}</code></span>`;
+        + `<code class="hljs md-ref-preview__code${focusClass}${languageClass}" style="--md-ref-tab-size:${tabSize};${syntaxTheme ? `color:${syntaxTheme.foreground}` : ''}">${renderedCode}</code></span>`;
+}
+
+function applySyntaxTheme(code: string, theme: SyntaxHighlightTheme): string {
+    return code.replace(/<span\b[^>]*>/gi, tag => {
+        const classMatch = /\bclass=(['"])(.*?)\1/i.exec(tag);
+        if (!classMatch) return tag;
+        const classes = classMatch[2]
+            .split(/\s+/)
+            .map(value => value.toLowerCase().replace(/^hljs-/, '').replace(/_$/, ''));
+        const kind = syntaxTokenKindForClasses(classes);
+        if (!kind) return tag;
+        const style = theme.tokens[kind];
+        const css = `color:${style.color};font-style:${style.fontStyle};font-weight:${style.fontWeight};text-decoration:${style.textDecoration}`;
+        if (/\sstyle=(['"])(.*?)\1/i.test(tag)) {
+            return tag.replace(/\sstyle=(['"])(.*?)\1/i, (_match, quote: string, current: string) =>
+                ` style=${quote}${current};${css}${quote}`
+            );
+        }
+        return `${tag.slice(0, -1)} style="${css}">`;
+    });
+}
+
+function syntaxTokenKindForClasses(classes: string[]): SyntaxTokenKind | undefined {
+    if (classes.includes('title') && classes.includes('class')) return 'type';
+    if (classes.includes('title') && classes.includes('function')) return 'function';
+    const mappings: Array<[SyntaxTokenKind, string[]]> = [
+        ['comment', ['comment', 'quote']],
+        ['keyword', ['keyword']],
+        ['string', ['string', 'doctag']],
+        ['number', ['number']],
+        ['literal', ['literal']],
+        ['regexp', ['regexp']],
+        ['function', ['title', 'section']],
+        ['type', ['type', 'class']],
+        ['parameter', ['params']],
+        ['property', ['attr', 'property']],
+        ['attribute', ['attribute']],
+        ['variable', ['variable', 'template-variable']],
+        ['built-in', ['built_in', 'builtin-name']],
+        ['meta', ['meta']],
+        ['tag', ['tag', 'name']],
+        ['selector', ['selector-tag', 'selector-id', 'selector-class', 'selector-attr', 'selector-pseudo']],
+        ['symbol', ['symbol', 'bullet']],
+        ['addition', ['addition']],
+        ['deletion', ['deletion']],
+    ];
+    return mappings.find(([, candidates]) => candidates.some(candidate => classes.includes(candidate)))?.[0];
+}
+
+function renderDecoratedCodeLines(
+    highlightedCode: string,
+    source: PreviewSource,
+    reference: ResolvedReference
+): string {
+    const sourceLineCount = source.content.split('\n').length;
+    const highlightedLines = splitHighlightedCodeLines(highlightedCode);
+    if (highlightedLines.length > sourceLineCount) highlightedLines.length = sourceLineCount;
+    while (highlightedLines.length < sourceLineCount) highlightedLines.push('');
+
+    return highlightedLines.map((line, index) => {
+        const relativeLine = index + 1;
+        const classes = ['md-ref-preview__line'];
+        if (matchesLineRange(relativeLine, reference.highlightLines)) {
+            classes.push('md-ref-preview__line--highlight');
+        }
+        if (matchesLineRange(relativeLine, reference.focusLines)) {
+            classes.push('md-ref-preview__line--focus');
+        }
+        return `<span class="${classes.join(' ')}" data-line="${source.startLine + index}">${line}</span>`;
+    }).join('');
+}
+
+function splitHighlightedCodeLines(code: string): string[] {
+    const lines = [''];
+    const openSpans: string[] = [];
+    const tokens = /(<span\b[^>]*>|<\/span>|\r?\n)/gi;
+    let cursor = 0;
+    let match: RegExpExecArray | null;
+    while ((match = tokens.exec(code))) {
+        lines[lines.length - 1] += code.slice(cursor, match.index);
+        const token = match[0];
+        if (/\r?\n/.test(token)) {
+            lines[lines.length - 1] += '</span>'.repeat(openSpans.length);
+            lines.push(openSpans.join(''));
+        } else {
+            lines[lines.length - 1] += token;
+            if (/^<span\b/i.test(token)) openSpans.push(token);
+            else if (openSpans.length) openSpans.pop();
+        }
+        cursor = match.index + token.length;
+    }
+    lines[lines.length - 1] += code.slice(cursor);
+    return lines;
+}
+
+function matchesLineRange(
+    line: number,
+    ranges: ResolvedReference['highlightLines'] | ResolvedReference['focusLines']
+): boolean {
+    return ranges?.some(range => line >= range.start && line <= range.end) ?? false;
+}
+
+function renderPreviewLink(
+    reference: ResolvedReference,
+    documentPath: string,
+    markdown: MarkdownIt,
+    pluginOptions: MarkdownReferencePluginOptions
+): string {
+    const href = markdown.utils.escapeHtml(referenceHref(reference, documentPath));
+    const title = markdown.utils.escapeHtml(reference.absolutePath);
+    const fileName = markdown.utils.escapeHtml(reference.filePath.split(/[\\/]/).at(-1) ?? reference.filePath);
+    const symbol = reference.symbol ? `#${markdown.utils.escapeHtml(reference.symbol)}` : '';
+    const configuredFontSize = pluginOptions.fontSizeForDocument?.(documentPath);
+    const fontSize = typeof configuredFontSize === 'number' && configuredFontSize >= 8 && configuredFontSize <= 32
+        ? configuredFontSize
+        : 13;
+    return `<a class="md-ref-preview__link" href="${href}" data-href="${href}" title="${title}" style="--md-ref-font-size:${fontSize}px">${fileName}${symbol}</a>`;
+}
+
+function renderPreviewMessage(link: string, message: string): string {
+    return `<span class="md-ref-preview">`
+        + `<span class="md-ref-preview__header">${link}</span>`
+        + `<span class="md-ref-preview__message">${message}</span></span>`;
 }
 
 interface PreviewSource {
@@ -191,7 +361,10 @@ interface PreviewSource {
     endLine: number;
 }
 
-function readPreviewSource(reference: ResolvedReference): PreviewSource | undefined {
+function readPreviewSource(
+    reference: ResolvedReference,
+    dedentTabSize?: number
+): PreviewSource | undefined {
     try {
         const stat = fs.statSync(reference.absolutePath);
         if (stat.size > 1024 * 1024) return undefined;
@@ -202,14 +375,54 @@ function readPreviewSource(reference: ResolvedReference): PreviewSource | undefi
         if (startLine > lines.length) return undefined;
         const requestedEnd = reference.endLine ?? Math.min(lines.length, startLine + 199);
         const endLine = Math.min(requestedEnd, lines.length);
+        const previewLines = lines.slice(startLine - 1, endLine);
         return {
-            content: lines.slice(startLine - 1, endLine).join('\n'),
+            content: (dedentTabSize ? dedentLines(previewLines, dedentTabSize) : previewLines).join('\n'),
             startLine,
             endLine,
         };
     } catch {
         return undefined;
     }
+}
+
+function dedentLines(lines: string[], tabSize: number): string[] {
+    const nonEmptyIndents = lines
+        .filter(line => line.trim().length > 0)
+        .map(line => indentationColumns(line, tabSize));
+    if (!nonEmptyIndents.length) return lines.map(() => '');
+    const indentToRemove = Math.min(...nonEmptyIndents);
+    if (indentToRemove === 0) return lines;
+    return lines.map(line => removeIndentColumns(line, indentToRemove, tabSize));
+}
+
+function indentationColumns(line: string, tabSize: number): number {
+    let columns = 0;
+    for (const character of line) {
+        if (character === ' ') columns++;
+        else if (character === '\t') columns += tabSize - (columns % tabSize);
+        else break;
+    }
+    return columns;
+}
+
+function removeIndentColumns(line: string, columnsToRemove: number, tabSize: number): string {
+    if (!line.trim()) return '';
+    let columns = 0;
+    let index = 0;
+    while (index < line.length && columns < columnsToRemove) {
+        const character = line[index];
+        if (character !== ' ' && character !== '\t') break;
+        const nextColumns = character === '\t'
+            ? columns + tabSize - (columns % tabSize)
+            : columns + 1;
+        index++;
+        if (nextColumns > columnsToRemove) {
+            return ' '.repeat(nextColumns - columnsToRemove) + line.slice(index);
+        }
+        columns = nextColumns;
+    }
+    return line.slice(index);
 }
 
 function isInsideLink(tokens: Token[], index: number): boolean {

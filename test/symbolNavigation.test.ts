@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { describe, expect, it } from 'vitest';
-import { symbolIconForKind } from '../src/symbolIconService';
+import {
+    extensionSupportsLanguage,
+    loadDocumentSymbolsWithRetry,
+    symbolIconForKind,
+} from '../src/symbolIconService';
 import { findSymbolTarget } from '../src/symbolNavigation';
 
 describe('symbol navigation', () => {
@@ -27,6 +31,16 @@ describe('symbol navigation', () => {
         } as vscode.SymbolInformation;
 
         expect(findSymbolTarget([symbol], 'User.email')?.range).toBe(range);
+        expect(findSymbolTarget([symbol], 'User.email')?.fullRange).toBe(range);
+    });
+
+    it('keeps the full document symbol range for source previews', () => {
+        const selectionRange = { marker: 'method-name' } as unknown as vscode.Range;
+        const fullRange = { marker: 'method-body' } as unknown as vscode.Range;
+        const symbol = documentSymbol('hello', [], selectionRange, vscode.SymbolKind.Method, fullRange);
+
+        expect(findSymbolTarget([symbol], 'hello')?.range).toBe(selectionRange);
+        expect(findSymbolTarget([symbol], 'hello')?.fullRange).toBe(fullRange);
     });
 
     it('maps VS Code symbol kinds to the same Outline Codicons', () => {
@@ -39,18 +53,48 @@ describe('symbol navigation', () => {
             color: 'method',
         });
     });
+
+    it('retries an empty document-symbol result while a language server starts', async () => {
+        const symbol = documentSymbol('hello', [], undefined, vscode.SymbolKind.Method);
+        const request = vi.fn()
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([symbol]);
+        const wait = vi.fn().mockResolvedValue(undefined);
+
+        const symbols = await loadDocumentSymbolsWithRetry(request, [0, 250, 750], wait);
+
+        expect(symbols).toEqual([symbol]);
+        expect(request).toHaveBeenCalledTimes(3);
+        expect(wait).toHaveBeenNthCalledWith(1, 250);
+        expect(wait).toHaveBeenNthCalledWith(2, 750);
+    });
+
+    it('recognizes language extensions that need explicit cold activation', () => {
+        expect(extensionSupportsLanguage({
+            activationEvents: ['onLanguage:kotlin'],
+        }, 'kotlin')).toBe(true);
+        expect(extensionSupportsLanguage({
+            contributes: { languages: [{ id: 'kotlin' }] },
+        }, 'kotlin')).toBe(true);
+        expect(extensionSupportsLanguage({
+            activationEvents: ['onLanguage:java'],
+        }, 'kotlin')).toBe(false);
+    });
 });
 
 function documentSymbol(
     name: string,
     children: vscode.DocumentSymbol[],
     selectionRange = { marker: name } as unknown as vscode.Range,
-    kind = vscode.SymbolKind.Class
+    kind = vscode.SymbolKind.Class,
+    range = selectionRange
 ): vscode.DocumentSymbol {
     return {
         name,
         children,
         selectionRange,
+        range,
         kind,
     } as vscode.DocumentSymbol;
 }

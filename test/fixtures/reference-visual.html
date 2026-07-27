@@ -31,6 +31,7 @@
             display: flex;
             flex-direction: column;
             gap: 18px;
+            width: min(560px, 100%);
         }
 
         .sample-label {
@@ -64,6 +65,16 @@
                 <span class="codicon codicon-symbol-method md-ref__icon md-ref__symbol-icon md-ref__symbol-icon--method" aria-hidden="true"></span>
                 <span class="md-ref__label"><span class="md-ref__path">user.ts</span><span class="md-ref__symbol">#findUser</span></span>
             </a>
+        </div>
+        <div style="width: 100%">
+            <span class="sample-label">Symbol source preview</span>
+            <span class="md-ref-preview">
+                <span class="md-ref-preview__header">
+                    <a id="preview-reference" class="md-ref-preview__link" href="#preview" style="--md-ref-font-size:13px">a.kt#hello</a>
+                    <span class="md-ref-preview__meta">Line 2</span>
+                </span>
+                <code class="hljs md-ref-preview__code md-ref-preview__code--has-focus language-kotlin"><span class="md-ref-preview__line md-ref-preview__line--highlight" data-line="1"><span style="color: #c586c0">fun</span> hello() {</span><span class="md-ref-preview__line md-ref-preview__line--focus" data-line="2">    val message = "hello"</span><span class="md-ref-preview__line md-ref-preview__line--highlight" data-line="3">    prepare(message)</span><span class="md-ref-preview__line md-ref-preview__line--focus" data-line="4">    println(message)</span><span class="md-ref-preview__line" data-line="5">}</span></code>
+            </span>
         </div>
     </main>
 </body>

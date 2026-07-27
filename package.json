@@ -28,6 +28,19 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Markdown Reference Preview",
+      "properties": {
+        "markdownReference.fontSize": {
+          "type": "number",
+          "default": 13,
+          "minimum": 8,
+          "maximum": 32,
+          "scope": "resource",
+          "markdownDescription": "Controls the font size in pixels of file and symbol references in the Markdown preview."
+        }
+      }
+    },
     "markdown.markdownItPlugins": true,
     "markdown.previewStyles": [
       "./node_modules/@vscode/codicons/dist/codicon.css",

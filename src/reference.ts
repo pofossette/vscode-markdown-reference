@@ -1,6 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+export interface LineRange {
+    start: number;
+    end: number;
+}
+
 export interface ParsedReference {
     raw: string;
     filePath: string;
@@ -8,6 +13,8 @@ export interface ParsedReference {
     endLine?: number;
     symbol?: string;
     preview: boolean;
+    highlightLines?: LineRange[];
+    focusLines?: LineRange[];
 }
 
 export interface ResolvedReference extends ParsedReference {
@@ -25,8 +32,11 @@ const segment = String.raw`[A-Za-z0-9_@+~.-]*[A-Za-z0-9_@+~-]`;
 const pathWithDirectory = String.raw`(?:(?:\.{1,2}[\\/])|${segment}[\\/])(?:${segment}[\\/])*${segment}`;
 const fileWithExtension = String.raw`[A-Za-z0-9_@+~-]+\.[A-Za-z0-9_@+~.-]*[A-Za-z0-9_@+~-]`;
 const symbolFragment = String.raw`#[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*`;
+const lineRangeList = String.raw`\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*`;
+const queryParameter = String.raw`(?:preview=true|(?:highlight|focus)=${lineRangeList})`;
+const referenceQuery = String.raw`\?${queryParameter}(?:&${queryParameter})*`;
 const bareReferencePattern = new RegExp(
-    String.raw`(^|[\s([{"'“‘])((?:${pathWithDirectory}|${fileWithExtension})(?::\d+(?:-\d+)?)?(?:\?preview=true)?(?:${symbolFragment})?)(?=$|[\s)\]}"'”’.,;!?，。；！？])`,
+    String.raw`(^|[\s([{"'“‘])((?:${pathWithDirectory}|${fileWithExtension})(?::\d+(?:-\d+)?)?(?:(?:${symbolFragment})(?:${referenceQuery})?|(?:${referenceQuery})(?:${symbolFragment})?)?)(?=$|[\s)\]}"'”’.,;!?，。；！？])`,
     'gi'
 );
 
@@ -34,7 +44,12 @@ export function parseReference(value: string): ParsedReference | undefined {
     const raw = value.trim();
     if (!raw || /[\r\n]/.test(raw)) return undefined;
 
-    let body = raw;
+    const split = splitReferenceQuery(raw);
+    if (!split) return undefined;
+    let body = split.body;
+    const query = parseReferenceQuery(split.query);
+    if (!query) return undefined;
+
     let symbol: string | undefined;
     const fragmentIndex = body.indexOf('#');
     if (fragmentIndex >= 0) {
@@ -46,14 +61,6 @@ export function parseReference(value: string): ParsedReference | undefined {
         }
         body = body.slice(0, fragmentIndex);
         if (!symbol || /[\r\n?#]/.test(symbol)) return undefined;
-    }
-
-    let preview = false;
-    if (/\?preview=true$/i.test(body)) {
-        preview = true;
-        body = body.slice(0, body.lastIndexOf('?'));
-    } else if (body.includes('?')) {
-        return undefined;
     }
 
     let startLine: number | undefined;
@@ -69,7 +76,82 @@ export function parseReference(value: string): ParsedReference | undefined {
     if (!body || /^(?:https?|mailto|data|command|vscode):/i.test(body)) return undefined;
     if (/[\0<>|*]/.test(body)) return undefined;
 
-    return { raw, filePath: body, startLine, endLine, symbol, preview };
+    return {
+        raw,
+        filePath: body,
+        startLine,
+        endLine,
+        symbol,
+        preview: query.preview,
+        ...(query.highlightLines ? { highlightLines: query.highlightLines } : {}),
+        ...(query.focusLines ? { focusLines: query.focusLines } : {}),
+    };
+}
+
+interface ReferenceQueryOptions {
+    preview: boolean;
+    highlightLines?: LineRange[];
+    focusLines?: LineRange[];
+}
+
+function splitReferenceQuery(raw: string): { body: string; query?: string } | undefined {
+    const queryIndex = raw.indexOf('?');
+    if (queryIndex < 0) return { body: raw };
+    if (raw.indexOf('?', queryIndex + 1) >= 0) return undefined;
+
+    const fragmentIndex = raw.indexOf('#');
+    if (fragmentIndex > queryIndex) {
+        return {
+            body: raw.slice(0, queryIndex) + raw.slice(fragmentIndex),
+            query: raw.slice(queryIndex + 1, fragmentIndex),
+        };
+    }
+    return {
+        body: raw.slice(0, queryIndex),
+        query: raw.slice(queryIndex + 1),
+    };
+}
+
+function parseReferenceQuery(query: string | undefined): ReferenceQueryOptions | undefined {
+    if (query === undefined) return { preview: false };
+    if (!query) return undefined;
+
+    const result: ReferenceQueryOptions = { preview: false };
+    const seen = new Set<string>();
+    for (const [rawKey, value] of new URLSearchParams(query)) {
+        const key = rawKey.toLowerCase();
+        if (seen.has(key)) return undefined;
+        seen.add(key);
+        if (key === 'preview') {
+            if (value.toLowerCase() !== 'true') return undefined;
+            result.preview = true;
+        } else if (key === 'highlight' || key === 'focus') {
+            const ranges = parseLineRanges(value);
+            if (!ranges) return undefined;
+            if (key === 'highlight') result.highlightLines = ranges;
+            else result.focusLines = ranges;
+        } else {
+            return undefined;
+        }
+    }
+    if ((result.highlightLines || result.focusLines) && !result.preview) return undefined;
+    return result;
+}
+
+function parseLineRanges(value: string): LineRange[] | undefined {
+    if (!value || value.length > 1000) return undefined;
+    const ranges: LineRange[] = [];
+    for (const part of value.split(',')) {
+        const match = /^(\d+)(?:-(\d+))?$/.exec(part);
+        if (!match) return undefined;
+        const start = Number(match[1]);
+        const end = match[2] ? Number(match[2]) : start;
+        if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 1 || end < start) {
+            return undefined;
+        }
+        ranges.push({ start, end });
+    }
+    return ranges;
 }
 
 export function findReferenceMatches(text: string): ReferenceMatch[] {
